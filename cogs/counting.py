@@ -168,7 +168,7 @@ class Counting(commands.Cog):
         db_data.append(insert)
         self.save_db_data(db_data)
 
-        self.counting_data = load_counting_data()
+        counting_data = load_counting_data()
         counting_data[f"{guild.id}"] = 0
         self.save_counting_data(counting_data)
 
