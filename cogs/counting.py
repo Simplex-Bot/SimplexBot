@@ -95,7 +95,7 @@ class Counting(commands.Cog):
         if self.db_data_lock.locked():
             self.db_data_lock.release()
 
-    def get_guild_db_data(db_data, guild):
+    def get_guild_db_data(self, db_data, guild):
         for datum in db_data:
             if datum["guild_id"] == guild.id:
                 return datum
