@@ -7,10 +7,7 @@ import numpy
 import threading
 
 # Counting
-
-
 async def counting(msg, guild, channel, m, counting):
-    
     try:
         if msg.startswith('this'):
          return
@@ -72,7 +69,7 @@ class Counting(commands.Cog):
     
     # Loads and returns counting data json object.
     # If lock is NOT set to False, save_counting_data needs to be called after this method.
-    def load_counting_data(lock = True):
+    def load_counting_data(self, lock = True):
         if lock:
             self.counting_data_lock.acquire()
         with open("./databases/counting.json") as f:
@@ -80,19 +77,19 @@ class Counting(commands.Cog):
 
     # Loads and returns db data json object.
     # If lock is NOT set to False, save_db_data needs to be called after this method.
-    def load_db_data(lock = True):
+    def load_db_data(self, lock = True):
         if lock:
             self.db_data_lock.acquire()
         with open("./databases/db.json") as f:
             return json.load(f)
 
-    def save_counting_data(counting_data):
+    def save_counting_data(self, counting_data):
         with open("./databases/counting.json", 'w') as f:
             json.dump(counting_data, f, indent=4)
         if self.counting_data_lock.locked():
             self.counting_data_lock.release()
 
-    def save_db_data(db_data):
+    def save_db_data(self, db_data):
         with open("./databases/db.json", 'w') as f:
             json.dump(db_data, f, indent=4)
         if self.db_data_lock.locked():
