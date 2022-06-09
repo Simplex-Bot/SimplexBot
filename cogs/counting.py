@@ -5,13 +5,27 @@ import json
 import numexpr as ne
 import numpy
 
-async def get_counting_channel(guild):
+def load_counting_data():
+    with open("./databases/counting.json") as f:
+        return json.load(f)
+
+def load_db_data():
     with open("./databases/db.json") as f:
-        data = json.load(f)
-    for i in data:
-        if i["guild_id"] == guild.id:
-            return int(i["counting_channel"])
+        return json.load(f)
+
+def get_guild_db_data(db_data, guild):
+    for datum in db_data:
+        if datum["guild_id"] == guild.id:
+            return datum
     return None
+
+def save_counting_data(counting_data):
+    with open("./databases/counting.json", 'w') as f:
+        json.dump(counting_data, f, indent=4)
+
+def save_db_data(db_data):
+    with open("./databases/db.json", 'w') as f:
+        json.dump(db_data, f, indent=4)
 
 # Counting
 
@@ -32,47 +46,39 @@ async def counting(msg, guild, channel, m):
         except:
          return    
 
-    cc = await get_counting_channel(guild)
-
-    if cc is None:
+    db_data = load_db_data()
+    guild_db_data = get_guild_db_data(db_data, guild)
+    try:
+        counting_channel_id = int(guild_db_data["counting_channel"])
+        if counting_channel_id is None:
+            return
+    except:
         return
-    if channel.id == cc:
-        with open("./databases/counting.json") as f:
-            data = json.load(f)
-        with open('./databases/db.json') as f:
-            dataa = json.load(f)
-        for i in dataa:
-            if i['guild_id'] == guild.id:
-                if i['lastcounter'] == None:
-                    i['lastcounter'] = m.author.id
-                    break
-                elif i['lastcounter'] == m.author.id:
-                    data[f"{guild.id}"] = 0
-                    i['lastcounter'] = None
-                    await m.add_reaction("❌")
-                    em = discord.Embed(title=f"{m.author.name}, You ruined it!", description="Only one person at a time\nCount reset to zero")
-                    with open("./databases/counting.json", 'w') as f:
-                        json.dump(data, f, indent=4)
-                    with open("./databases/db.json", 'w') as f:
-                        json.dump(dataa, f, indent=4)
-                    return await channel.send(embed=em)
-                else:
-                    i['lastcounter'] = m.author.id
-                    break
-                    
-        if (data[f"{guild.id}"] + 1) == msg:
-            data[f"{guild.id}"] += 1
-            await m.add_reaction("✅")
-        else:
+
+    if channel.id == counting_channel_id:
+        counting_data = get_counting_data()
+
+        if guild_db_data['lastcounter'] == m.author.id:
+            counting_data[f"{guild.id}"] = 0
+            guild_db_data['lastcounter'] = None
             await m.add_reaction("❌")
-            em = discord.Embed(title=f"{m.author.name}, You ruined it!", description=f"You were supposed to type `{(data[f'{guild.id}']+1)}`\nCount reset to zero")
-            i['lastcounter'] = None
-            data[f"{guild.id}"] = 0
+            em = discord.Embed(title=f"{m.author.name}, You ruined it!", description="Only one person at a time\nCount reset to zero")
             await channel.send(embed=em)
-        with open("./databases/counting.json", 'w') as f:
-            json.dump(data, f, indent=4)
-        with open("./databases/db.json", 'w') as f:
-            json.dump(dataa, f, indent=4)
+        else:
+            guild_db_data['lastcounter'] = m.author.id
+            next_number = counting_data[f"{guild.id}"] + 1
+                        
+            if msg == next_number:
+                counting_data[f"{guild.id}"] = next_number
+                await m.add_reaction("✅")
+            else:
+                em = discord.Embed(title=f"{m.author.name}, You ruined it!", description=f"You were supposed to type `{next_number}`\nCount reset to zero")
+                guild_db_data['lastcounter'] = None
+                counting_data[f"{guild.id}"] = 0
+                await channel.send(embed=em)
+                await m.add_reaction("❌")
+        save_counting_data(counting_data)
+        save_db_data(db_data)
 
 
 class Counting(commands.Cog):
@@ -82,10 +88,9 @@ class Counting(commands.Cog):
     @commands.command(aliases=['num'])
     async def numrn(self, ctx):
         guild = ctx.guild
-        with open('./databases/counting.json') as f:
-            data = json.load(f)
-        guildid = f'{guild.id}'
-        numrn = data[guildid]
+        counting_data = load_counting_data()
+        guild_id = f'{guild.id}'
+        numrn = data[guild_id]
         await ctx.send(f"Current number is {numrn}")
 
     @commands.Cog.listener()
@@ -110,37 +115,32 @@ class Counting(commands.Cog):
                 "counting_channel": None,
                 "lastcounter":None,
             }
-            with open("./databases/db.json") as f:
-                data = json.load(f)
-            data.append(insert)
-            with open("./databases/db.json", 'w') as f:
-                json.dump(data, f, indent=4)
+            db_data = load_db_data()
+            db_data.append(insert)
+            save_db_data(db_data)
             
-            with open("./databases/counting.json") as f:
-                data2 = json.load(f)
-            data2[f"{i.id}"] = 0
-            with open("./databases/counting.json", 'w') as f:
-                json.dump(data2, f, indent=4)
+            counting_data = load_counting_data()
+            counting_data[f"{i.id}"] = 0
+            save_counting_data(counting_data)
             
     
     @commands.command()
     async def setcountchannel(self, ctx, channel:discord.TextChannel):
-        with open("./databases/db.json") as f:
-            data = json.load(f)
-        for i in data:
-            if i['guild_id'] == ctx.guild.id:
-                i['counting_channel'] = channel.id
-        with open('./databases/db.json', 'w') as f:
-            json.dump(data, f, indent =4)
+        db_data = load_db_data()
+
+        guild_db_data = get_guild_db_data(db_data, ctx.guild)
+        guild_db_data['counting_channel'] = channel.id
+
+        save_db_data(db_data)
+
     @commands.command()
     async def countingoff(self, ctx):
-            with open("./databases/db.json") as f:
-                data = json.load(f)
-            for i in data:
-                if i['guild_id'] == ctx.guild.id:
-                    i['counting_channel'] = None
-            with open('./databases/db.json', 'w') as f:
-                json.dump(data, f, indent =4)
+        data = load_db_data()
+
+        guild_db_data = get_guild_db_data(db_data, ctx.guild)
+        guild_db_data['counting_channel'] = None
+
+        save_db_data(db_data)
             
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
@@ -149,18 +149,13 @@ class Counting(commands.Cog):
             "counting_channel": None,
             "lastcounter":None,
         }
-        with open("./databases/db.json") as f:
-            data = json.load(f)
-        data.append(insert)
-        with open("./databases/db.json", 'w') as f:
-            json.dump(data, f, indent=4)
+        db_data = load_db_data()
+        db_data.append(insert)
+        save_db_data(db_data)
 
-        with open("./databases/counting.json") as f:
-            data2 = json.load(f)
-        data2[f"{guild.id}"] = 0
-        with open("./databases/counting.json", 'w') as f:
-            json.dump(data2, f, indent=4)
-
+        counting_data = load_counting_data()
+        counting_data[f"{guild.id}"] = 0
+        save_counting_data(counting_data)
 
 
 def setup(client):
