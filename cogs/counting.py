@@ -71,28 +71,32 @@ class Counting(commands.Cog):
         self.db_data_lock = threading.Lock()
     
     # Loads and returns counting data json object.
-    # save_counting_data needs to be called after this method.
-    def load_counting_data():
-        self.counting_data_lock.acquire()
+    # If lock is NOT set to False, save_counting_data needs to be called after this method.
+    def load_counting_data(lock = True):
+        if lock:
+            self.counting_data_lock.acquire()
         with open("./databases/counting.json") as f:
             return json.load(f)
 
     # Loads and returns db data json object.
-    # save_db_data needs to be called after this method.
-    def load_db_data():
-        self.db_data_lock.acquire()
+    # If lock is NOT set to False, save_db_data needs to be called after this method.
+    def load_db_data(lock = True):
+        if lock:
+            self.db_data_lock.acquire()
         with open("./databases/db.json") as f:
             return json.load(f)
 
     def save_counting_data(counting_data):
         with open("./databases/counting.json", 'w') as f:
             json.dump(counting_data, f, indent=4)
-        self.counting_data_lock.release()
+        if self.counting_data_lock.locked():
+            self.counting_data_lock.release()
 
     def save_db_data(db_data):
         with open("./databases/db.json", 'w') as f:
             json.dump(db_data, f, indent=4)
-        self.db_data_lock.release()
+        if self.db_data_lock.locked():
+            self.db_data_lock.release()
 
     def get_guild_db_data(db_data, guild):
         for datum in db_data:
@@ -103,7 +107,7 @@ class Counting(commands.Cog):
     @commands.command(aliases=['num'])
     async def numrn(self, ctx):
         guild = ctx.guild
-        counting_data = load_counting_data()
+        counting_data = self.load_counting_data(False)
         guild_id = f'{guild.id}'
         numrn = data[guild_id]
         await ctx.send(f"Current number is {numrn}")
